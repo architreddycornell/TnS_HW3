@@ -1,9 +1,12 @@
 import pandas as pd
 import sys, re
+from typing import Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
+from pathlib import Path
+
 
 try:
 
@@ -16,9 +19,16 @@ except ImportError:
 
 
 
-class PolicyProposalLabeler:
+class PolicyProposalClassifier:
     def __init__(self):
-        self.train_data = pd.read_csv('training-data/posts.csv')
+        #self.train_data = pd.read_csv('training-data/posts.csv')
+        
+        root = Path(__file__).resolve().parent
+
+        csv_path = root.parent / "training-data" / "posts.csv"
+
+        self.train_data = pd.read_csv(csv_path)
+        
         self.vectorizer = TfidfVectorizer(max_features=5000)
         self.model = LogisticRegression()
 
@@ -54,7 +64,7 @@ class PolicyProposalLabeler:
         return classification_report(self.y_test, self.y_pred)
 
 
-def post_text_from_url(url: str) -> str | None:
+def post_text_from_url(url: str) -> Optional[str]:
 
     if _ATP_CLIENT is None:
 
@@ -77,11 +87,41 @@ def post_text_from_url(url: str) -> str | None:
         return None
 # use the classifier
 
-classifier = PolicyProposalClassifier()
+if __name__ == "__main__":
 
-# when used in automated_labeler.py, maybe this string could be a parameter.
+    if len(sys.argv) < 2:
 
-result = classifier.predict("I'm going to give away free money!")
-print(f"Prediction: {result}")
-evaluation = classifier.evaluate()
-print(f"Evaluation: {evaluation}")
+        print("Usage: python3 policy_proposal_labeler.py <post-url>")
+
+
+    user_input = " ".join(sys.argv[1:])
+
+    is_url = re.match(r"https?://", user_input)
+
+    if is_url:
+
+        text = post_text_from_url(user_input)
+
+        if not text:
+
+            sys.exit("Unable to fetch posts")
+
+    else:
+
+        text = user_input
+
+    
+    classifier = PolicyProposalClassifier()
+
+    label = classifier.predict(text)
+
+    print(f"Input text:\n {text[:120]}...\nPrediction -> {label}")
+
+    if label == 1:
+
+        print("POTENTIAL-SCAM")
+
+
+    print("\n=== model evaluation on hold")
+
+    print(classifier.evaluate())
